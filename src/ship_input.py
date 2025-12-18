@@ -1,49 +1,54 @@
 import csv
-from src.utils import is_inside, coord_to_index, neighbors
+from src.utils import in_bounds, coord_to_index, neighbours
 
 SHIP_SIZES = [4, 3, 3, 2, 2, 2, 1, 1, 1, 1]
 
 def read_player_ships():
-    ships = []
+    ships = {}
     occupied = set()
+    ship_id = 1
 
-    print("Enter ships in format: size: A1 A2 A3")
+    print("Enter ship coordinates separated by spaces (e.g., A1 A2 A3 A4)")
+
     for size in SHIP_SIZES:
         while True:
             line = input(f"Ship size {size}: ").upper()
+            cells = line.strip().split()
+
             try:
-                s, coords = line.split(":")
-                s = int(s.strip())
-                cells = coords.strip().split()
+                if len(cells) != size:
+                    raise ValueError(f"You need exactly {size} cells.")
 
-                if s != size or len(cells) != size:
-                    raise ValueError
-
+                indexes = []
                 for c in cells:
-                    if not is_inside(c):
-                        raise ValueError
+                    r, col = coord_to_index(c)
+                    if not in_bounds(r, col):
+                        raise ValueError("Coordinate out of bounds.")
+                    indexes.append((r, col))
 
-                indexes = [coord_to_index(c) for c in cells]
-
-                for r, c in indexes:
-                    for nr, nc in neighbors(r, c):
+                # проверка на касание других кораблей
+                for r, col in indexes:
+                    for nr, nc in neighbours(r, col):
                         if (nr, nc) in occupied:
-                            raise ValueError
+                            raise ValueError("Ships cannot touch each other.")
 
-                for r, c in indexes:
-                    occupied.add((r, c))
+                for cell in indexes:
+                    occupied.add(cell)
 
-                ships.append(cells)
+                ships[ship_id] = cells  # сохраняем уже в формате "A1"
+                ship_id += 1
                 break
-            except:
-                print("Invalid ship placement. Try again.")
+
+            except ValueError as e:
+                print("Invalid ship placement:", e, "Try again.")
 
     return ships
 
-
-def save_player_ships(ships, filename="data/player_ships.csv"):
+def save_ships(ships, filename):
+    """Сохраняем корабли в CSV в графическом виде (A1, B5 и т.д.)"""
     with open(filename, "w", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(["ship_id", "size", "cells"])
-        for i, ship in enumerate(ships):
-            writer.writerow([i+1, len(ship), " ".join(ship)])
+        writer.writerow(["ship_id", "cell"])
+        for ship_id, cells in ships.items():
+            for cell in cells:
+                writer.writerow([ship_id, cell])
